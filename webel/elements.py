@@ -29,59 +29,57 @@ str_to_strategy = {
 }
 
 
-# TODO: Rename selectors to locators
-def parse_selector(selector):
-    if '=' not in selector:
-        return By.ID, selector
-    strategy_str, value = selector.split('=', 1)
+def parse_locator(locator):
+    if '=' not in locator:
+        return By.ID, locator
+    strategy_str, value = locator.split('=', 1)
     strategy = str_to_strategy[strategy_str]
     return strategy, value
 
 
-def get_element_by_selector(selector, container=None):
-    elements = get_elements_by_selector(selector, container=container)
+def get_element_by_locator(locator, container=None):
+    elements = get_elements_by_locator(locator, container=container)
     if len(elements) == 0:
-        raise NoSuchElementException('%r is not found' % selector)
+        raise NoSuchElementException('%r is not found' % locator)
     if len(elements) > 1:
         raise MultipleElementsSelectedException(
             '%r returned more than one element (%d)' % (
-                selector, len(elements)))
+                locator, len(elements)))
     return elements[0]
 
 
-def get_elements_by_selector(selector, container=None):
+def get_elements_by_locator(locator, container=None):
     if container is None:
         container = get_driver()
-    strategy, value = parse_selector(selector)
+    strategy, value = parse_locator(locator)
     return container.find_elements(by=strategy, value=value)
 
 
 class Element(object):
 
-    def __init__(self, selector):
-        self.selector = selector
+    def __init__(self, locator):
+        self.locator = locator
 
-    # TODO: rename to get_webelement (and all other webelements).
-    def get_element(self, page, timeout=10):
+    def get_webelement(self, page, timeout=10):
         # TODO: remove `get_driver()`
-        container = getattr(page, 'element', None)
+        container = getattr(page, 'webelement', None)
         driver = get_driver() if container is None else container
-        # XXX: Will it fail when there are several elements returned by `self.selector`?
-        element = WebDriverWait(driver, timeout).until(
-            EC.presence_of_element_located(parse_selector(self.selector)),
-            message="Can't get %r element" % self.selector
+        # XXX: Will it fail when there are several elements returned by `self.locator`?
+        webelement = WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located(parse_locator(self.locator)),
+            message="Can't get %r element" % self.locator
         )
-        return element
+        return webelement
 
 
 # TODO: Create one abstract Text element and to implementations: TextInput and TextArea.
 class Text(Element):
 
     def __get__(self, page, type):
-        return self.get_element(page).get_attribute('value')
+        return self.get_webelement(page).get_attribute('value')
 
     def __set__(self, page, value):
-        el = self.get_element(page)
+        el = self.get_webelement(page)
         el.click()
         el.send_keys(value)
 
@@ -89,34 +87,34 @@ class Text(Element):
 class ReadOnlyText(Element):
 
     def __get__(self, page, type):
-        element = self.get_element(page)
-        return element.text
+        webelement = self.get_webelement(page)
+        return webelement.text
 
 
 class Checkbox(Element):
 
     def __get__(self, page, type):
-        element = self.get_element(page)
-        return element.is_selected()
+        webelement = self.get_webelement(page)
+        return webelement.is_selected()
 
     def __set__(self, page, value):
-        element = self.get_element(page)
-        if element.is_selected() != value:
-            element.click()
+        webelement = self.get_webelement(page)
+        if webelement.is_selected() != value:
+            webelement.click()
 
 
 class LinkObject(object):
 
-    def __init__(self, container, element, to_page_cls):
+    def __init__(self, container, webelement, to_page_cls):
         self.container = container
-        self.element = element
+        self.webelement = webelement
         self.to_page_cls = to_page_cls
 
     def __call__(self):
         return self.click()
 
     def click(self):
-        self.element.click()
+        self.webelement.click()
         if self.to_page_cls is not None:
             assert_is_on_page = self.to_page_cls.url is not None
             page = self.to_page_cls(assert_is_on_page=assert_is_on_page)
@@ -125,12 +123,12 @@ class LinkObject(object):
 
 class Link(Element):
 
-    def __init__(self, selector, to=None):
-        super(Link, self).__init__(selector)
+    def __init__(self, locator, to=None):
+        super(Link, self).__init__(locator)
         self.to_page_cls = to
 
     def __get__(self, container, type):
-        return LinkObject(container, self.get_element(container), self.to_page_cls)
+        return LinkObject(container, self.get_webelement(container), self.to_page_cls)
 
 
 Button = Link
@@ -138,19 +136,19 @@ Button = Link
 
 class FragmentObject(object):
 
-    def __init__(self, element, container=None):
+    def __init__(self, webelement, container=None):
         self.container = container
-        self.element = element
+        self.webelement = webelement
 
 
 class Fragment(Element):
 
-    def __init__(self, selector, fragment_cls):
-        super(Fragment, self).__init__(selector)
+    def __init__(self, locator, fragment_cls):
+        super(Fragment, self).__init__(locator)
         self.fragment_cls = fragment_cls
 
     def __get__(self, container, type):
-        return self.fragment_cls(self.get_element(container), container)
+        return self.fragment_cls(self.get_webelement(container), container)
 
 
 class Page(object):
@@ -158,11 +156,6 @@ class Page(object):
     url = None
 
     def __init__(self, load=None, assert_is_on_page=None):
-        # if load is None and assert_is_on_page is None:
-        #     assert self.url is not None, "Don't now what to do."
-        #     if not self.is_on_the_page():
-        #         self.load()
-
         if load is True and assert_is_on_page is True:
             raise TypeError("That's not valid to set `load` and "
                             "`assert_is_assert_is_on_page` to True at the same time.")
@@ -176,7 +169,7 @@ class Page(object):
         if load:
             self.load()
 
-        self.element = get_driver()
+        self.webelement = get_driver()
 
     def load(self):
         get_driver().get(self.url)

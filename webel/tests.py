@@ -4,20 +4,19 @@ from selenium.webdriver.common.by import By
 
 from webel.exceptions import NoSuchElementException, MultipleElementsSelectedException
 from webel.elements import (
-    parse_selector, get_elements_by_selector, get_element_by_selector, set_driver,
+    parse_locator, get_elements_by_locator, get_element_by_locator, set_driver,
     Element, Text, Page, ReadOnlyText, Checkbox, Link, FragmentObject, Fragment)
 
 
-# TODO: Rename selectors to locators
 class ParseLocatorTests(TestCase):
 
-    def test_parse_selector(self):
-        self.assertEqual(parse_selector("xpath=//div[text()='']"),
+    def test_parse_locator(self):
+        self.assertEqual(parse_locator("xpath=//div[text()='']"),
                          (By.XPATH, "//div[text()='']"))
 
-    def test_parse_selector_default(self):
+    def test_parse_locator_default(self):
         # TODO: Change default to css
-        self.assertEqual(parse_selector("id_whatever"), (By.ID, "id_whatever"))
+        self.assertEqual(parse_locator("id_whatever"), (By.ID, "id_whatever"))
 
 
 class GettingElementsTests(TestCase):
@@ -25,44 +24,44 @@ class GettingElementsTests(TestCase):
     def test_get_elements_by_locator(self):
         mocked_driver = Mock()
         set_driver(mocked_driver)
-        get_elements_by_selector('whatever')
+        get_elements_by_locator('whatever')
         mocked_driver.find_elements.assert_called_once_with(by=By.ID, value='whatever')
 
     def test_get_elements_by_locator_with_a_container(self):
         container = Mock()
-        get_elements_by_selector('whatever', container=container)
+        get_elements_by_locator('whatever', container=container)
         container.find_elements.assert_called_once_with(by=By.ID, value='whatever')
 
     def test_get_element_by_locator(self):
         mocked_driver = Mock(**{'find_elements.return_value': [Mock()]})
         set_driver(mocked_driver)
-        get_element_by_selector('whatever')
+        get_element_by_locator('whatever')
         mocked_driver.find_elements.assert_called_once_with(by=By.ID, value='whatever')
 
     def test_get_element_by_locator_with_a_container(self):
         container = Mock(**{'find_elements.return_value': [Mock()]})
-        get_element_by_selector('whatever', container=container)
+        get_element_by_locator('whatever', container=container)
         container.find_elements.assert_called_once_with(by=By.ID, value='whatever')
 
     def test_get_element_by_locator_should_raise_when_no_elements_found(self):
         container = Mock(**{'find_elements.return_value': []})
         with self.assertRaises(NoSuchElementException):
-            get_element_by_selector('whatever', container=container)
+            get_element_by_locator('whatever', container=container)
 
     def test_get_element_by_locator_should_raise_when_several_elements_found(self):
         container = Mock(**{'find_elements.return_value': [Mock(), Mock()]})
         with self.assertRaises(MultipleElementsSelectedException):
-            get_element_by_selector('whatever', container=container)
+            get_element_by_locator('whatever', container=container)
 
 
 class ElementTests(TestCase):
 
     def test_get_element(self):
         webdriver_element = Mock()
-        page = Mock(**{'element.find_element.return_value': webdriver_element})
+        page = Mock(**{'webelement.find_element.return_value': webdriver_element})
         element = Element('xpath=//div')
-        self.assertEqual(element.get_element(page), webdriver_element)
-        page.element.find_element.assert_called_once_with('xpath', '//div')
+        self.assertEqual(element.get_webelement(page), webdriver_element)
+        page.webelement.find_element.assert_called_once_with('xpath', '//div')
 
     def test_raises_when_no_elements(self):
         pass  # TODO
@@ -84,7 +83,7 @@ class ElementSubclassesTests(TestCase):
         self.page = TestPage(assert_is_on_page=False)
 
     def test_text_read(self):
-        self.page.text
+        text = self.page.text
         self.webelement.get_attribute.assert_called_once_with('value')
 
     def test_text_write(self):
@@ -96,7 +95,7 @@ class ElementSubclassesTests(TestCase):
         self.assertEqual(self.page.ro_text, 'ro_text')
 
     def test_checkbox_read(self):
-        self.page.cbox
+        is_checked = self.page.cbox
         self.webelement.is_selected.assert_called_once_with()
 
     def test_checkbox_write(self):
@@ -164,7 +163,7 @@ class FragmentTests(TestCase):
     def test_elements_on_fragment(self):
         fragment = self.page.fragment
         fragment.input = 'lalala'
-        fragment.element.find_element().send_keys.assert_called_once_with('lalala')
+        fragment.webelement.find_element().send_keys.assert_called_once_with('lalala')
 
 
 class PageTests(TestCase):
