@@ -2,19 +2,20 @@ from urlparse import urlparse, urlunparse
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException
+
+from webel.exceptions import NoSuchElementException, MultipleElementsSelectedException
 
 
-browser = None
+driver = None
 
 
-def set_browser(b):
-    global browser
-    browser = b
+def set_driver(b):
+    global driver
+    driver = b
 
 
-def get_browser():
-    return browser
+def get_driver():
+    return driver
 
 
 str_to_strategy = {
@@ -28,12 +29,13 @@ str_to_strategy = {
 }
 
 
+# TODO: Rename selectors to locators
 def parse_selector(selector):
     if '=' not in selector:
         return By.ID, selector
-    strategy_str, locator = selector.split('=', 1)
+    strategy_str, value = selector.split('=', 1)
     strategy = str_to_strategy[strategy_str]
-    return strategy, locator
+    return strategy, value
 
 
 def get_element_by_selector(selector, container=None):
@@ -41,16 +43,17 @@ def get_element_by_selector(selector, container=None):
     if len(elements) == 0:
         raise NoSuchElementException('%r is not found' % selector)
     if len(elements) > 1:
-        raise Exception('%r returned more than one element (%d)' % (
-            selector, len(elements)))
+        raise MultipleElementsSelectedException(
+            '%r returned more than one element (%d)' % (
+                selector, len(elements)))
     return elements[0]
 
 
 def get_elements_by_selector(selector, container=None):
     if container is None:
-        container = get_browser()
-    strategy, locator = parse_selector(selector)
-    return container.find_elements(by=strategy, value=locator)
+        container = get_driver()
+    strategy, value = parse_selector(selector)
+    return container.find_elements(by=strategy, value=value)
 
 
 class Element(object):
@@ -58,9 +61,12 @@ class Element(object):
     def __init__(self, selector):
         self.selector = selector
 
+    # TODO: rename to get_webelement (and all other webelements).
     def get_element(self, page, timeout=10):
+        # TODO: remove `get_driver()`
         container = getattr(page, 'element', None)
-        driver = get_browser() if container is None else container
+        driver = get_driver() if container is None else container
+        # XXX: Will it fail when there are several elements returned by `self.selector`?
         element = WebDriverWait(driver, timeout).until(
             EC.presence_of_element_located(parse_selector(self.selector)),
             message="Can't get %r element" % self.selector
@@ -167,11 +173,13 @@ class Page(object):
         if load:
             self.load()
 
+        self.element = get_driver()
+
     def load(self):
-        get_browser().get(self.url)
+        get_driver().get(self.url)
 
     def is_on_the_page(self):
-        return self._clean_url(get_browser().current_url) == self.url
+        return self._clean_url(get_driver().current_url) == self.url
 
     @staticmethod
     def _clean_url(url):
