@@ -1,21 +1,20 @@
 from urlparse import urlparse, urlunparse
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
 from webel.exceptions import NoSuchElementException, MultipleElementsSelectedException
 
 
-driver = None
+_driver = None
 
 
 def set_driver(b):
-    global driver
-    driver = b
+    global _driver
+    _driver = b
 
 
 def get_driver():
-    return driver
+    return _driver
 
 
 str_to_strategy = {
@@ -31,14 +30,14 @@ str_to_strategy = {
 
 def parse_locator(locator):
     if '=' not in locator:
-        return By.ID, locator
+        return By.CSS_SELECTOR, locator
     strategy_str, value = locator.split('=', 1)
     strategy = str_to_strategy[strategy_str]
     return strategy, value
 
 
-def get_element_by_locator(locator, container=None):
-    elements = get_elements_by_locator(locator, container=container)
+def get_element(locator, container=None):
+    elements = get_elements(locator, container=container)
     if len(elements) == 0:
         raise NoSuchElementException('%r is not found' % locator)
     if len(elements) > 1:
@@ -48,7 +47,7 @@ def get_element_by_locator(locator, container=None):
     return elements[0]
 
 
-def get_elements_by_locator(locator, container=None):
+def get_elements(locator, container=None):
     if container is None:
         container = get_driver()
     strategy, value = parse_locator(locator)
@@ -60,13 +59,12 @@ class Element(object):
     def __init__(self, locator):
         self.locator = locator
 
-    def get_webelement(self, page, timeout=10):
-        # TODO: remove `get_driver()`
-        container = getattr(page, 'webelement', None)
-        driver = get_driver() if container is None else container
-        # XXX: Will it fail when there are several elements returned by `self.locator`?
-        webelement = WebDriverWait(driver, timeout).until(
-            EC.presence_of_element_located(parse_locator(self.locator)),
+    def get_webelement(self, container, timeout=10):
+        webelement = WebDriverWait(
+            container.webelement,
+            timeout, ignored_exceptions=(MultipleElementsSelectedException,)
+        ).until(
+            lambda driver: get_element(self.locator, driver),
             message="Can't get %r element" % self.locator
         )
         return webelement
@@ -75,30 +73,30 @@ class Element(object):
 # TODO: Create one abstract Text element and to implementations: TextInput and TextArea.
 class Text(Element):
 
-    def __get__(self, page, type):
-        return self.get_webelement(page).get_attribute('value')
+    def __get__(self, container, container_cls):
+        return self.get_webelement(container).get_attribute('value')
 
-    def __set__(self, page, value):
-        el = self.get_webelement(page)
+    def __set__(self, container, value):
+        el = self.get_webelement(container)
         el.click()
         el.send_keys(value)
 
 
 class ReadOnlyText(Element):
 
-    def __get__(self, page, type):
-        webelement = self.get_webelement(page)
+    def __get__(self, container, container_cls):
+        webelement = self.get_webelement(container)
         return webelement.text
 
 
 class Checkbox(Element):
 
-    def __get__(self, page, type):
-        webelement = self.get_webelement(page)
+    def __get__(self, container, container_cls):
+        webelement = self.get_webelement(container)
         return webelement.is_selected()
 
-    def __set__(self, page, value):
-        webelement = self.get_webelement(page)
+    def __set__(self, container, value):
+        webelement = self.get_webelement(container)
         if webelement.is_selected() != value:
             webelement.click()
 
@@ -127,7 +125,7 @@ class Link(Element):
         super(Link, self).__init__(locator)
         self.to_page_cls = to
 
-    def __get__(self, container, type):
+    def __get__(self, container, container_cls):
         return LinkObject(container, self.get_webelement(container), self.to_page_cls)
 
 
@@ -147,7 +145,7 @@ class Fragment(Element):
         super(Fragment, self).__init__(locator)
         self.fragment_cls = fragment_cls
 
-    def __get__(self, container, type):
+    def __get__(self, container, container_cls):
         return self.fragment_cls(self.get_webelement(container), container)
 
 
