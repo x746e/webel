@@ -113,12 +113,13 @@ class LinkObject(object):
         self.to_page_cls = to_page_cls
 
     def __call__(self):
-        self.click()
+        return self.click()
 
     def click(self):
         self.element.click()
         if self.to_page_cls is not None:
-            page = self.to_page_cls(assert_is_on_page=True)
+            assert_is_on_page = self.to_page_cls.url is not None
+            page = self.to_page_cls(assert_is_on_page=assert_is_on_page)
             return page
 
 
@@ -156,19 +157,21 @@ class Page(object):
 
     url = None
 
-    # XXX: make assert_is_on_page hidden?
     def __init__(self, load=None, assert_is_on_page=None):
-        if load is None and assert_is_on_page is None:
-            assert self.url is not None, "Don't now what to do."
-            if not self.is_on_the_page():
-                self.load()
+        # if load is None and assert_is_on_page is None:
+        #     assert self.url is not None, "Don't now what to do."
+        #     if not self.is_on_the_page():
+        #         self.load()
 
         if load is True and assert_is_on_page is True:
             raise TypeError("That's not valid to set `load` and "
                             "`assert_is_assert_is_on_page` to True at the same time.")
 
-        if assert_is_on_page and self.url is not None:
-            assert self.is_on_the_page()
+        if (assert_is_on_page or load) and self.url is None:
+            raise TypeError("Page need `self.url` for assert_is_on_page or load.")
+
+        if assert_is_on_page:
+            assert self._is_on_the_page()
 
         if load:
             self.load()
@@ -178,7 +181,7 @@ class Page(object):
     def load(self):
         get_driver().get(self.url)
 
-    def is_on_the_page(self):
+    def _is_on_the_page(self):
         return self._clean_url(get_driver().current_url) == self.url
 
     @staticmethod

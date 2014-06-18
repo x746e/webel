@@ -5,7 +5,7 @@ from selenium.webdriver.common.by import By
 from webel.exceptions import NoSuchElementException, MultipleElementsSelectedException
 from webel.elements import (
     parse_selector, get_elements_by_selector, get_element_by_selector, set_driver,
-    Element, Text, Page, ReadOnlyText, Checkbox)
+    Element, Text, Page, ReadOnlyText, Checkbox, Link, FragmentObject, Fragment)
 
 
 # TODO: Rename selectors to locators
@@ -105,3 +105,118 @@ class ElementSubclassesTests(TestCase):
         self.assertFalse(self.webelement.click.called)
         self.page.cbox = False
         self.webelement.click.assert_called_once_with()
+
+
+class LinkTests(TestCase):
+
+    def setUp(self):
+        self.other_page_cls = Mock()
+        class TestPage(Page):
+            clickme = Link('id=clickme')
+            linktopage = Link('id=linktopage', to=self.other_page_cls)
+        self.webelement = Mock()
+        self.driver = Mock(**{'find_element.return_value': self.webelement})
+        set_driver(self.driver)
+        self.page = TestPage(assert_is_on_page=False)
+
+    def test_call(self):
+        ret = self.page.clickme()
+        self.assertIsNone(ret)
+        self.webelement.click.assert_called_once_with()
+
+    def test_click(self):
+        ret = self.page.clickme.click()
+        self.assertIsNone(ret)
+        self.webelement.click.assert_called_once_with()
+
+    def test_to_page(self):
+        page = self.page.linktopage()
+        self.other_page_cls.assert_called_once_with(assert_is_on_page=True)
+        self.assertIs(page, self.other_page_cls())
+
+    def test_to_page_without_url(self):
+        other_page_cls = Mock(url=None)
+        class TestPage(Page):
+            linktopage = Link('id=linktopage', to=other_page_cls)
+        page = TestPage()
+        page.linktopage()
+        other_page_cls.assert_called_once_with(assert_is_on_page=False)
+
+
+class FragmentTests(TestCase):
+
+    def setUp(self):
+        self.mocked_driver = Mock()
+        set_driver(self.mocked_driver)
+
+        class TestFragmentObject(FragmentObject):
+            input = Text('css=.whatever')
+
+        class TestPage(Page):
+            fragment = Fragment('id=fragment_id', TestFragmentObject)
+
+        self.page = TestPage()
+
+    def test_getting_fragment(self):
+        fragment = self.page.fragment
+        self.mocked_driver.find_element.assert_called_once_with(By.ID, 'fragment_id')
+
+    def test_elements_on_fragment(self):
+        fragment = self.page.fragment
+        fragment.input = 'lalala'
+        fragment.element.find_element().send_keys.assert_called_once_with('lalala')
+
+
+class PageTests(TestCase):
+
+    def setUp(self):
+        self.mocked_driver = Mock()
+        set_driver(self.mocked_driver)
+        class TestPage(Page):
+            url = 'http://example.org/'
+        self.TestPage = TestPage
+
+    def test_load(self):
+        page = self.TestPage(load=True)
+        self.mocked_driver.get.assert_called_once_with('http://example.org/')
+
+    def test_load_is_disabled_by_default(self):
+        page = self.TestPage()
+        self.assertFalse(self.mocked_driver.get.called)
+        page = self.TestPage(load=False)
+        self.assertFalse(self.mocked_driver.get.called)
+
+    def test_assert_is_on_page(self):
+        self.mocked_driver.current_url = 'http://example.org/?lala=1'
+        page = self.TestPage(assert_is_on_page=True)
+        self.mocked_driver.current_url = 'http://example.org/whatever/'
+        with self.assertRaises(AssertionError):
+            page = self.TestPage(assert_is_on_page=True)
+
+    def test_is_on_page(self):
+        page = self.TestPage()
+        self.mocked_driver.current_url = 'http://example.org/?lala=1'
+        self.assertTrue(page._is_on_the_page())
+        self.mocked_driver.current_url = 'http://example.org/whatever/'
+        self.assertFalse(page._is_on_the_page())
+
+    def test_load_and_assert_is_on_page_at_the_same_time(self):
+        with self.assertRaises(TypeError):
+            self.TestPage(load=True, assert_is_on_page=True)
+
+    def test_assert_is_on_page_without_url(self):
+        class TestPage(Page):
+            pass
+        with self.assertRaises(TypeError):
+            page = TestPage(assert_is_on_page=True)
+
+    def test_clean_url(self):
+        self.assertEqual(Page._clean_url('http://example.org/?lalal&ss&dd=1'),
+                         'http://example.org/')
+        self.assertEqual(Page._clean_url('http://example.org/some/path/?lalal=2'),
+                         'http://example.org/some/path/')
+        self.assertEqual(Page._clean_url('http://example.org/w/o/slash?lalal=a'),
+                         'http://example.org/w/o/slash')
+        self.assertEqual(Page._clean_url('http://example.org/w/o/slash?lalal=b'),
+                         'http://example.org/w/o/slash')
+        self.assertEqual(Page._clean_url('/some/path?lala=1'), '/some/path')
