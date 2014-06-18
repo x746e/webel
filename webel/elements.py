@@ -103,8 +103,7 @@ class Checkbox(Element):
 
 class LinkObject(object):
 
-    def __init__(self, container, webelement, to_page_cls):
-        self.container = container
+    def __init__(self, webelement, to_page_cls):
         self.webelement = webelement
         self.to_page_cls = to_page_cls
 
@@ -126,7 +125,7 @@ class Link(Element):
         self.to_page_cls = to
 
     def __get__(self, container, container_cls):
-        return LinkObject(container, self.get_webelement(container), self.to_page_cls)
+        return LinkObject(self.get_webelement(container), self.to_page_cls)
 
 
 Button = Link
@@ -134,8 +133,7 @@ Button = Link
 
 class FragmentObject(object):
 
-    def __init__(self, webelement, container=None):
-        self.container = container
+    def __init__(self, webelement):
         self.webelement = webelement
 
 
@@ -146,7 +144,7 @@ class Fragment(Element):
         self.fragment_cls = fragment_cls
 
     def __get__(self, container, container_cls):
-        return self.fragment_cls(self.get_webelement(container), container)
+        return self.fragment_cls(self.get_webelement(container))
 
 
 class Page(object):
@@ -161,19 +159,23 @@ class Page(object):
         if (assert_is_on_page or load) and self.url is None:
             raise TypeError("Page need `self.url` for assert_is_on_page or load.")
 
+        self.driver = get_driver()
+
         if assert_is_on_page:
             assert self._is_on_the_page()
 
         if load:
             self.load()
 
-        self.webelement = get_driver()
+    @property
+    def webelement(self):
+        return self.driver
 
     def load(self):
-        get_driver().get(self.url)
+        self.driver.get(self.url)
 
     def _is_on_the_page(self):
-        return self._clean_url(get_driver().current_url) == self.url
+        return self._clean_url(self.driver.current_url) == self.url
 
     @staticmethod
     def _clean_url(url):
