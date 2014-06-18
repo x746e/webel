@@ -6,7 +6,8 @@ from webel.exceptions import (
     NoSuchElementException, MultipleElementsSelectedException, TimeoutException,)
 from webel.elements import (
     parse_locator, get_elements, get_element, set_driver,
-    Element, Text, Page, ReadOnlyText, Checkbox, Link, FragmentObject, Fragment)
+    Element, Text, Page, ReadOnlyText, Checkbox, Link, FragmentObject, Fragment,
+    ElementList)
 
 
 class ParseLocatorTests(TestCase):
@@ -147,6 +148,21 @@ class LinkTests(TestCase):
         page = TestPage()
         page.linktopage()
         other_page_cls.assert_called_once_with(assert_is_on_page=False)
+
+
+class ElementListTests(TestCase):
+
+    def test_it(self):
+        lis_webobjects = [Mock(), Mock(), Mock()]
+        mocked_driver = Mock(**{'find_elements.return_value': lis_webobjects})
+        set_driver(mocked_driver)
+        class TestPage(Page):
+            lis = ElementList('ul > lis', FragmentObject)
+        page = TestPage()
+
+        lis = page.lis
+        self.assertEqual(len(lis), 3)
+        self.assertIs(lis[1].webelement, lis_webobjects[1])
 
 
 class FragmentTests(TestCase):

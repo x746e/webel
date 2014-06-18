@@ -131,6 +131,25 @@ class Link(Element):
 Button = Link
 
 
+class ElementList(object):
+
+    def __init__(self, locator, list_object_cls):
+        self.locator = locator
+        self.list_object_cls = list_object_cls
+
+    def __get__(self, container, container_cls):
+        timeout = 2
+        webelements = WebDriverWait(
+            container.webelement, timeout,
+        ).until(
+            lambda driver: get_elements(self.locator, driver),
+            message="Can't get %r elements" % self.locator
+        )
+        return [
+            self.list_object_cls(webelement) for webelement in webelements
+        ]
+
+
 class FragmentObject(object):
 
     def __init__(self, webelement):
@@ -139,12 +158,12 @@ class FragmentObject(object):
 
 class Fragment(Element):
 
-    def __init__(self, locator, fragment_cls):
+    def __init__(self, locator, fragment_object_cls):
         super(Fragment, self).__init__(locator)
-        self.fragment_cls = fragment_cls
+        self.fragment_object_cls = fragment_object_cls
 
     def __get__(self, container, container_cls):
-        return self.fragment_cls(self.get_webelement(container))
+        return self.fragment_object_cls(self.get_webelement(container))
 
 
 class Page(object):
