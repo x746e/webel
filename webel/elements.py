@@ -1,57 +1,7 @@
-from urlparse import urlparse, urlunparse
-from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 
-from webel.exceptions import NoSuchElementException, MultipleElementsSelectedException
-
-
-_driver = None
-
-
-def set_driver(b):
-    global _driver
-    _driver = b
-
-
-def get_driver():
-    return _driver
-
-
-str_to_strategy = {
-    'id': By.ID,
-    'xpath': By.XPATH,
-    'name': By.NAME,
-    'class': By.CLASS_NAME,
-    'css': By.CSS_SELECTOR,
-    'link_text': By.LINK_TEXT,
-    'tag_name': By.TAG_NAME,
-}
-
-
-def parse_locator(locator):
-    if '=' not in locator:
-        return By.CSS_SELECTOR, locator
-    strategy_str, value = locator.split('=', 1)
-    strategy = str_to_strategy[strategy_str]
-    return strategy, value
-
-
-def get_element(locator, container=None):
-    elements = get_elements(locator, container=container)
-    if len(elements) == 0:
-        raise NoSuchElementException('%r is not found' % locator)
-    if len(elements) > 1:
-        raise MultipleElementsSelectedException(
-            '%r returned more than one element (%d)' % (
-                locator, len(elements)))
-    return elements[0]
-
-
-def get_elements(locator, container=None):
-    if container is None:
-        container = get_driver()
-    strategy, value = parse_locator(locator)
-    return container.find_elements(by=strategy, value=value)
+from webel.exceptions import MultipleElementsSelectedException
+from webel.webelement_getters import get_element, get_elements
 
 
 class Element(object):
@@ -164,38 +114,3 @@ class Fragment(Element):
 
     def __get__(self, container, container_cls):
         return self.fragment_object_cls(self.get_webelement(container))
-
-
-class Page(object):
-
-    url = None
-
-    def __init__(self, load=None, assert_is_on_page=None):
-        if load is True and assert_is_on_page is True:
-            raise TypeError("That's not valid to set `load` and "
-                            "`assert_is_assert_is_on_page` to True at the same time.")
-
-        if (assert_is_on_page or load) and self.url is None:
-            raise TypeError("Page need `self.url` for assert_is_on_page or load.")
-
-        self.driver = get_driver()
-
-        if assert_is_on_page:
-            assert self._is_on_the_page()
-
-        if load:
-            self.load()
-
-    @property
-    def webelement(self):
-        return self.driver
-
-    def load(self):
-        self.driver.get(self.url)
-
-    def _is_on_the_page(self):
-        return self._clean_url(self.driver.current_url) == self.url
-
-    @staticmethod
-    def _clean_url(url):
-        return urlunparse(urlparse(url)[:3] + ('', '', ''))

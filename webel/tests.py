@@ -4,10 +4,12 @@ from selenium.webdriver.common.by import By
 
 from webel.exceptions import (
     NoSuchElementException, MultipleElementsSelectedException, TimeoutException,)
+from webel.driver import get_driver, set_driver
+from webel.webelement_getters import parse_locator, get_element, get_elements
 from webel.elements import (
-    parse_locator, get_elements, get_element, set_driver,
-    Element, Text, Page, ReadOnlyText, Checkbox, Link, FragmentObject, Fragment,
+    Element, Text, ReadOnlyText, Checkbox, Link, FragmentObject, Fragment,
     ElementList)
+from webel.page import Page
 
 
 class ParseLocatorTests(TestCase):
