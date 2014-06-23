@@ -4,7 +4,7 @@ from selenium.webdriver.common.by import By
 
 from webel.exceptions import (
     NoSuchElementException, MultipleElementsSelectedException, TimeoutException,)
-from webel.driver import get_driver, set_driver
+from webel.driver import set_driver
 from webel.webelement_getters import parse_locator, get_element, get_elements
 from webel.elements import (
     Element, Text, ReadOnlyText, Checkbox, Link, FragmentObject, Fragment,
@@ -208,20 +208,63 @@ class PageTests(TestCase):
         self.mocked_driver.get.assert_called_once_with('http://example.org/')
 
     def test_load_is_disabled_by_default(self):
-        page = self.TestPage()
+        page = self.TestPage(assert_is_on_page=False)
         self.assertFalse(self.mocked_driver.get.called)
-        page = self.TestPage(load=False)
+        page = self.TestPage(load=False, assert_is_on_page=False)
         self.assertFalse(self.mocked_driver.get.called)
+
+    def test_page_without_url(self):
+        class PageWithoutURL(Page):
+            pass
+        PageWithoutURL()
 
     def test_assert_is_on_page(self):
         self.mocked_driver.current_url = 'http://example.org/?lala=1'
-        page = self.TestPage(assert_is_on_page=True)
+        self.TestPage(assert_is_on_page=True, timeout=.1)
         self.mocked_driver.current_url = 'http://example.org/whatever/'
-        with self.assertRaises(AssertionError):
-            page = self.TestPage(assert_is_on_page=True)
+        with self.assertRaises(TimeoutException):
+            self.TestPage(assert_is_on_page=True, timeout=.1)
+
+    def test_assert_is_on_page_with_fragment(self):
+        class URLFragmentPage(Page):
+            url = 'http://example.org/courses/#/course/CRS1'
+        self.mocked_driver.current_url = 'http://example.org/courses/#/course/CRS1'
+        URLFragmentPage(assert_is_on_page=True, timeout=.1)
+        self.mocked_driver.current_url = 'http://example.org/courses/#/course/WTWR1'
+        with self.assertRaises(TimeoutException):
+            URLFragmentPage(assert_is_on_page=True, timeout=.1)
+
+    def test_parametrized_assert_is_on_page(self):
+        class ParametrizedPage(Page):
+            url = 'http://example.org/courses/#/course/{slug}'
+        self.mocked_driver.current_url = 'http://example.org/courses/#/course/CRS1'
+        ParametrizedPage(slug='CRS1', assert_is_on_page=True, timeout=.1)
+        with self.assertRaises(TimeoutException):
+            ParametrizedPage(slug='WTWR1', assert_is_on_page=True, timeout=.1)
+
+    def test_wrong_parameters_to_the_page(self):
+        class ExcessPage1(Page):
+            pass
+        with self.assertRaises(TypeError):
+            ExcessPage1(aa=1)
+
+        class Page2(Page):
+            url = 'http://example.org/{whtvr}/'
+        with self.assertRaises(TypeError):
+            Page2(whtvr=1, rvthw=2)
+        with self.assertRaises(TypeError):
+            Page2(rvthw=2)
+
+    def test_url_should_not_be_checked_when_it_is_parametrized_and_no_kwargs_are_provided(self):
+        class TestPage(Page):
+            url = 'http://example.org/{whatever}/'
+
+        TestPage._assert_is_on_page = _assert_is_on_page = Mock()
+        TestPage()
+        self.assertFalse(_assert_is_on_page.called)
 
     def test_is_on_page(self):
-        page = self.TestPage()
+        page = self.TestPage(assert_is_on_page=False)
         self.mocked_driver.current_url = 'http://example.org/?lala=1'
         self.assertTrue(page._is_on_the_page())
         self.mocked_driver.current_url = 'http://example.org/whatever/'

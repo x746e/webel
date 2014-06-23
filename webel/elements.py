@@ -10,6 +10,7 @@ class Element(object):
         self.locator = locator
 
     def get_webelement(self, container, timeout=10):
+        # TODO: move waiting to `webelement_getters`.
         webelement = WebDriverWait(
             container.webelement,
             timeout, ignored_exceptions=(MultipleElementsSelectedException,)
@@ -88,6 +89,7 @@ class ElementList(object):
         self.list_object_cls = list_object_cls
 
     def __get__(self, container, container_cls):
+        # TODO: move waiting to `webelement_getters`.
         timeout = 2
         webelements = WebDriverWait(
             container.webelement, timeout,
