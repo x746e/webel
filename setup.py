@@ -7,7 +7,7 @@ setup(
     author_email='tn@0x746e.org.ua',
     packages=['webel'],
     license='LICENSE',
-    desription='Helpers for doing web-testing with Webdriver',
+    description='Helpers for doing web-testing with Webdriver',
     long_description=open('README.rst').read(),
     install_requires=['selenium'],
 )

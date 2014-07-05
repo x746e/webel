@@ -77,8 +77,8 @@ class Page(object):
         absent_vars = None  #set(url_params) - set(kwargs.keys())
         err_str = []
         if excess_vars:
-            err_str += 'Superfluous arguments to %s: %r.' % (
-                self.__class__.__name__, excess_vars)
+            err_str.append('Superfluous arguments to %s: %r.' % (
+                self.__class__.__name__, excess_vars))
         if absent_vars:
             err_str.append('Absent arguments to %s: %r.' % (
                 self.__class__.__name__, absent_vars))
