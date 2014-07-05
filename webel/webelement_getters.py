@@ -18,9 +18,10 @@ str_to_strategy = {
 def parse_locator(locator):
     if '=' not in locator:
         return By.CSS_SELECTOR, locator
-    strategy_str, value = locator.split('=', 1)
-    strategy = str_to_strategy[strategy_str]
-    return strategy, value
+    strategy, value = locator.split('=', 1)
+    if strategy not in str_to_strategy:
+        return By.CSS_SELECTOR, locator
+    return str_to_strategy[strategy], value
 
 
 # TODO: s/\<element/webelement
