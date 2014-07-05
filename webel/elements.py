@@ -33,6 +33,29 @@ class Text(Element):
         el.send_keys(value)
 
 
+class CheckingText(Element):
+
+    """
+    Like `Text`, but checks if the text appeared in the element, and fails if not.
+
+    May be helpful when dealing with tricky javascript-heavy controls.
+    """
+
+    def __get__(self, container, container_cls=None):
+        return self.get_webelement(container).get_attribute('value')
+
+    def __set__(self, container, value):
+        el = self.get_webelement(container)
+        el.click()
+        el.send_keys(value)
+        self.check(container, value)
+
+    def check(self, container, value):
+        new_value = self.__get__(container)
+        assert value == new_value
+
+
+
 class ReadOnlyText(Element):
 
     def __get__(self, container, container_cls):
