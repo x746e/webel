@@ -23,8 +23,11 @@ def parse_locator(locator):
     return strategy, value
 
 
-def get_element(locator, container=None):
+# TODO: s/\<element/webelement
+def get_element(locator, container=None, only_visible=True):
     elements = get_elements(locator, container=container)
+    if only_visible:
+        elements = [element for element in elements if element.is_displayed()]
     if len(elements) == 0:
         raise NoSuchElementException('%r is not found' % locator)
     if len(elements) > 1:
