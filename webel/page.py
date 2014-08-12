@@ -1,8 +1,8 @@
 import re
 from urlparse import urlunparse, urlparse
+import time
 from webel.driver import get_driver
 from webel.exceptions import TimeoutException
-from selenium.webdriver.support.wait import WebDriverWait
 
 
 class Page(object):
@@ -41,29 +41,28 @@ class Page(object):
     def load(self):
         self.driver.get(self.url)
 
-    def _assert_is_on_page(self, timeout=10):
-        try:
-            WebDriverWait(None, timeout).until(
-                lambda _driver: self._is_on_the_page()
-            )
-        except TimeoutException:
-            raise TimeoutException(
-                'Timeout while waiting for URL to become %s.  Current URL is: %s.' % (
-                    self.url, self._clean_url(self.driver.current_url)))
+    def _assert_is_on_page(self, timeout=20):
+        # Convert URI template into regex (not every URI template, only very
+        # basic ones).
+        regex = r'^%s$' % re.sub(r'{(\w+)}', r'(?P<\1>[\w-]+)', self.url)
 
-    def _is_on_the_page(self):
-        cleaned_url = self._clean_url(self.driver.current_url)
-        if '{' in self.url:
-            # Convert URI template into regex (not every URI templates, only very
-            # basic ones).
-            regex = r'^%s$' % re.sub(r'{(\w+)}', r'(?P<\1>[\w-]+)', self.url)
-            match = re.match(regex, cleaned_url)
-            if not match:
-                return False
-            self.params.update(match.groupdict())
-            return True
-        else:
-            return cleaned_url == self.url
+        cleaned_url = 'UNDEFINED'
+        start = time.time()
+        while time.time() - start < timeout:
+            cleaned_url = self._clean_url(self.driver.current_url)
+            if '{' in self.url:
+                match = re.match(regex, cleaned_url)
+                if match:
+                    self.params.update(match.groupdict())
+                    return
+            else:
+                if cleaned_url == self.url:
+                    return
+            time.sleep(.1)
+
+        raise TimeoutException(
+            'Timeout while waiting for URL to become %r.  Current URL is: %r.' % (
+                self.url, cleaned_url))
 
     @staticmethod
     def _clean_url(url):

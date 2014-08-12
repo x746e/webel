@@ -26,10 +26,15 @@ def parse_locator(locator):
 
 # TODO: s/\<element/webelement
 def get_element(locator, container=None, only_visible=True):
-    elements = get_elements(locator, container=container)
+    all_elements = get_elements(locator, container=container)
     if only_visible:
-        elements = [element for element in elements if element.is_displayed()]
-    if len(elements) == 0:
+        elements = [element for element in all_elements if element.is_displayed()]
+    else:
+        elements = all_elements
+
+    if only_visible and not elements:
+        raise NoSuchElementException('%r does not become visible')
+    elif not elements:
         raise NoSuchElementException('%r is not found' % locator)
     if len(elements) > 1:
         raise MultipleElementsSelectedException(

@@ -16,6 +16,9 @@ class Element(object):
             timeout, ignored_exceptions=(MultipleElementsSelectedException,)
         ).until(
             lambda driver: get_element(self.locator, driver),
+			# XXX: there can be several options: not only not found, by it will fail
+			# with the same message when there are several elements returned by the
+			# locator.  Probably it's worth reimplementing WebDriverWait.
             message="Can't get %r element" % self.locator
         )
         return webelement

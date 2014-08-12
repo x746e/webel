@@ -234,13 +234,6 @@ class PageTests(TestCase):
         with self.assertRaises(TimeoutException):
             URLFragmentPage(assert_is_on_page=True, timeout=.1)
 
-    def test_is_on_page(self):
-        page = self.TestPage(assert_is_on_page=False)
-        self.mocked_driver.current_url = 'http://example.org/?lala=1'
-        self.assertTrue(page._is_on_the_page())
-        self.mocked_driver.current_url = 'http://example.org/whatever/'
-        self.assertFalse(page._is_on_the_page())
-
     def test_load_and_assert_is_on_page_at_the_same_time(self):
         with self.assertRaises(TypeError):
             self.TestPage(load=True, assert_is_on_page=True)
