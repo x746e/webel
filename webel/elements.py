@@ -16,9 +16,9 @@ class Element(object):
             timeout, ignored_exceptions=(MultipleElementsSelectedException,)
         ).until(
             lambda driver: get_element(self.locator, driver),
-			# XXX: there can be several options: not only not found, by it will fail
-			# with the same message when there are several elements returned by the
-			# locator.  Probably it's worth reimplementing WebDriverWait.
+            # XXX: there can be several options: not only not found, by it will fail
+            # with the same message when there are several elements returned by the
+            # locator.  Probably it's worth reimplementing WebDriverWait.
             message="Can't get %r element" % self.locator
         )
         return webelement
@@ -32,6 +32,7 @@ class Text(Element):
 
     def __set__(self, container, value):
         el = self.get_webelement(container)
+        el.clear()
         el.click()
         el.send_keys(value)
 
@@ -132,6 +133,9 @@ class FragmentObject(object):
 
     def __init__(self, webelement):
         self.webelement = webelement
+
+    def click(self):
+        self.webelement.click()
 
 
 class Fragment(Element):
